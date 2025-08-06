@@ -20,10 +20,6 @@ jobs:
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
-          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
-          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
           prompt: |
             你是本项目的高级审查员，请严格依据 GEMINI.md 的规范审查本次改动，
             必要时提出修改建议并以 GitHub Review 形式回复。
