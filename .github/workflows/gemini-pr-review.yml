@@ -2,6 +2,7 @@ name: Gemini PR Review
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:  # 允许手动触发
 
 permissions:
   contents: read

@@ -16,19 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 生成 GitHub App Token，更安全；小型仓库亦可直接用默认 GITHUB_TOKEN
-      - name: Generate GitHub App Token
-        id: generate_token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
       # 查询待分流的 Issue（无标签或已有 status/needs-triage）
       - name: Find issues
         id: find_issues
         env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           echo '::group::Searching issues'
