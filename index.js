@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { validateCreateTodo, validateUpdateTodo } = require('./src/middleware/validation');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,17 +27,13 @@ app.get('/api/todos', (req, res) => {
  * @param {string} title - The todo title
  * @param {string} description - The todo description
  */
-app.post('/api/todos', (req, res) => {
+app.post('/api/todos', validateCreateTodo, (req, res) => {
   const { title, description } = req.body;
-  
-  if (!title) {
-    return res.status(400).json({ error: 'Title is required' });
-  }
   
   const todo = {
     id: nextId++,
-    title,
-    description: description || '',
+    title: title.trim(),
+    description: description ? description.trim() : '',
     completed: false,
     createdAt: new Date().toISOString()
   };
@@ -49,7 +46,7 @@ app.post('/api/todos', (req, res) => {
  * Update a todo
  * @route PUT /api/todos/:id
  */
-app.put('/api/todos/:id', (req, res) => {
+app.put('/api/todos/:id', validateUpdateTodo, (req, res) => {
   const id = parseInt(req.params.id);
   const todoIndex = todos.findIndex(todo => todo.id === id);
   
