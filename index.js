@@ -1,12 +1,29 @@
 const express = require('express');
 const cors = require('cors');
+const { validateCreateTodo, validateUpdateTodo } = require('./src/middleware/validation');
+const { setSecurityHeaders, rateLimit } = require('./src/middleware/security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-frontend-domain.com'] // 生产环境允许的域名
+    : true, // 开发环境允许所有域名
+  credentials: true, // 允许发送cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400 // 预检请求缓存时间（24小时）
+};
+
+// 应用安全中间件
+app.use(setSecurityHeaders);
+app.use(rateLimit);
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' })); // 限制请求体大小
+app.set('trust proxy', 1); // 信任第一级代理（用于获取真实IP）
 
 // In-memory storage for demo purposes
 let todos = [];
@@ -26,17 +43,13 @@ app.get('/api/todos', (req, res) => {
  * @param {string} title - The todo title
  * @param {string} description - The todo description
  */
-app.post('/api/todos', (req, res) => {
+app.post('/api/todos', validateCreateTodo, (req, res) => {
   const { title, description } = req.body;
-  
-  if (!title) {
-    return res.status(400).json({ error: 'Title is required' });
-  }
   
   const todo = {
     id: nextId++,
-    title,
-    description: description || '',
+    title: title.trim(),
+    description: description ? description.trim() : '',
     completed: false,
     createdAt: new Date().toISOString()
   };
@@ -49,7 +62,7 @@ app.post('/api/todos', (req, res) => {
  * Update a todo
  * @route PUT /api/todos/:id
  */
-app.put('/api/todos/:id', (req, res) => {
+app.put('/api/todos/:id', validateUpdateTodo, (req, res) => {
   const id = parseInt(req.params.id);
   const todoIndex = todos.findIndex(todo => todo.id === id);
   
