@@ -1,0 +1,38 @@
+name: Gemini PR Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write      # 允许写评论 / 变更状态
+  id-token: write           # WIF 所需
+  statuses: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Gemini Review
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          prompt: |
+            你是本项目的高级审查员，请严格依据 GEMINI.md 的规范审查本次改动，
+            必要时提出修改建议并以 GitHub Review 形式回复。
+            
+            请重点关注：
+            1. 代码规范是否符合项目标准
+            2. 测试覆盖率是否充足
+            3. 错误处理是否完善
+            4. API 设计是否一致
+            5. 是否存在安全漏洞
+            6. 性能影响评估
+          settings: |
+            { "model": "gemini-2.5-pro", "temperature": 0.2 }

@@ -1,0 +1,65 @@
+name: Gemini Issue Triage
+on:
+  schedule:
+    - cron: '0 * * * *'       # 每小时运行
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+  statuses: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 生成 GitHub App Token，更安全；小型仓库亦可直接用默认 GITHUB_TOKEN
+      - name: Generate GitHub App Token
+        id: generate_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # 查询待分流的 Issue（无标签或已有 status/needs-triage）
+      - name: Find issues
+        id: find_issues
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          echo '::group::Searching issues'
+          ISSUES=$(gh issue list --search 'is:open is:issue no:label' --json number,title,body)
+          echo "issues_to_triage=$ISSUES" >> "$GITHUB_OUTPUT"
+          echo '::endgroup::'
+
+      # 交给 Gemini 处理并打标签
+      - name: Gemini Issue Triage
+        if: ${{ steps.find_issues.outputs.issues_to_triage != '[]' }}
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          ISSUES_TO_TRIAGE: ${{ steps.find_issues.outputs.issues_to_triage }}
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          settings: |
+            {
+              "coreTools": ["run_shell_command(gh issue edit)"],
+              "telemetry": { "enabled": true, "target": "gcp" }
+            }
+          prompt: |
+            你是 Issue 分流机器人。根据标题与描述为每条 Issue 选择合适的标签：
+            
+            可用标签类型：
+            - area/* （模块）: area/frontend, area/backend, area/database, area/api
+            - kind/* （类型）: kind/bug, kind/feature, kind/enhancement, kind/documentation
+            - priority/* （优先级）: priority/low, priority/medium, priority/high, priority/critical
+            
+            请为每个 Issue 只保留最匹配的各一个标签，并用一句话解释原因。
+            使用 gh issue edit 命令来添加标签。

@@ -1,0 +1,48 @@
+name: Gemini CLI Assistant
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  assistant:
+    if: contains(github.event.comment.body, '@gemini-cli')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      id-token: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Gemini Assistant
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          settings: |
+            {
+              "coreTools": ["run_shell_command(gh)", "run_shell_command(git)"],
+              "telemetry": { "enabled": true, "target": "gcp" },
+              "model": "gemini-2.5-flash",
+              "temperature": 0.3
+            }
+          prompt: |
+            你是项目的 AI 助手。用户在 Issue 或 PR 中 @gemini-cli，你需要：
+            
+            1. 分析用户的请求和上下文
+            2. 如果是代码相关问题，参考 GEMINI.md 中的规范
+            3. 提供有用的建议或执行相应的操作
+            4. 保持友好和专业的语气
+            
+            可用的命令包括：
+            - /review - 重新审查当前 PR
+            - /explain - 解释代码或变更
+            - /test - 建议测试方案
+            - /docs - 生成或更新文档
+            
+            请根据用户的具体请求提供帮助。
